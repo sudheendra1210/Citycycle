@@ -1,11 +1,11 @@
 /**
  * Predictions Page
- * ML-based waste prediction with gradient cards matching original UI
+ * ML-based waste prediction with glassmorphism UI
  */
 
 import React, { useState, useEffect } from 'react';
 import { FiTrendingUp, FiClock, FiAlertTriangle, FiMapPin, FiActivity } from 'react-icons/fi';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { binsService } from '../services/binsService';
 
 const Predictions = () => {
@@ -14,50 +14,46 @@ const Predictions = () => {
     const [timeRange, setTimeRange] = useState('24h');
     const [loading, setLoading] = useState(false);
 
-    // Mock prediction data
-    const predictionSummary = {
+    const [predictionSummary, setPredictionSummary] = useState({
         predictedWaste: 4850,
         highRiskZones: 3,
         peakTime: '2:00 PM',
         confidence: 94.2
-    };
+    });
 
     // Mock data for predicted vs actual
-    const predictionVsActualData = {
-        '24h': [
-            { time: '00:00', predicted: 120, actual: 115 },
-            { time: '04:00', predicted: 80, actual: 85 },
-            { time: '08:00', predicted: 240, actual: 235 },
-            { time: '12:00', predicted: 380, actual: 395 },
-            { time: '16:00', predicted: 320, actual: 310 },
-            { time: '20:00', predicted: 180, actual: 175 },
-            { time: '23:59', predicted: 140, actual: 145 },
-        ],
-        '7d': [
-            { time: 'Mon', predicted: 2400, actual: 2350 },
-            { time: 'Tue', predicted: 2800, actual: 2900 },
-            { time: 'Wed', predicted: 2200, actual: 2180 },
-            { time: 'Thu', predicted: 3100, actual: 3050 },
-            { time: 'Fri', predicted: 2900, actual: 2950 },
-            { time: 'Sat', predicted: 3500, actual: 3600 },
-            { time: 'Sun', predicted: 2000, actual: 1950 },
-        ],
-        '30d': [
-            { time: 'Week 1', predicted: 18000, actual: 17500 },
-            { time: 'Week 2', predicted: 19500, actual: 20000 },
-            { time: 'Week 3', predicted: 21000, actual: 20800 },
-            { time: 'Week 4', predicted: 22500, actual: 22000 },
-        ]
-    };
+    const [chartData, setChartData] = useState([]);
 
-    // Zone-wise prediction data
-    const zoneWiseData = [
-        { zone: 'Zone A', predicted: 850, risk: 'high' },
-        { zone: 'Zone B', predicted: 620, risk: 'medium' },
-        { zone: 'Zone C', predicted: 1100, risk: 'high' },
-        { zone: 'Zone D', predicted: 480, risk: 'low' },
-        { zone: 'Zone E', predicted: 720, risk: 'medium' },
-    ];
+    // Generate random data based on bin
+    useEffect(() => {
+        if (!selectedBin) return;
+
+        // Deterministic hash-based randomness to vary data by bin but keep it stable
+        // Differs from original simple hash which was too similar between bins
+        const binHash = selectedBin.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        // Multiply by large prime and modulo to scatter values
+        const scatterFactor = (binHash * 997) % 100;
+
+        setPredictionSummary({
+            predictedWaste: 3800 + (scatterFactor * 25),
+            highRiskZones: Math.floor(scatterFactor / 15),
+            peakTime: `${(Math.floor(scatterFactor / 8) % 12) + 1}:00 PM`,
+            confidence: 88 + (scatterFactor / 10)
+        });
+
+        // Regenerate chart data
+        const baseData = [
+            { time: '00:00', predicted: 90 + scatterFactor, actual: 85 + scatterFactor },
+            { time: '04:00', predicted: 50 + scatterFactor, actual: 55 + scatterFactor },
+            { time: '08:00', predicted: 180 + scatterFactor * 2, actual: 170 + scatterFactor * 2 },
+            { time: '12:00', predicted: 320 + scatterFactor * 3, actual: 330 + scatterFactor * 3 },
+            { time: '16:00', predicted: 250 + scatterFactor * 2, actual: 240 + scatterFactor * 2 },
+            { time: '20:00', predicted: 130 + scatterFactor, actual: 125 + scatterFactor },
+            { time: '23:59', predicted: 100 + scatterFactor, actual: 105 + scatterFactor },
+        ];
+        setChartData(baseData);
+
+    }, [selectedBin, timeRange]);
 
     // Load bins on mount
     useEffect(() => {
@@ -76,31 +72,80 @@ const Predictions = () => {
         }
     };
 
+    // Dynamic Zone Data
+    const zoneWiseData = [
+        { zone: 'Zone A', predicted: Math.floor(predictionSummary.predictedWaste * 0.2), risk: 'high' },
+        { zone: 'Zone B', predicted: Math.floor(predictionSummary.predictedWaste * 0.15), risk: 'medium' },
+        { zone: 'Zone C', predicted: Math.floor(predictionSummary.predictedWaste * 0.3), risk: 'high' },
+        { zone: 'Zone D', predicted: Math.floor(predictionSummary.predictedWaste * 0.1), risk: 'low' },
+        { zone: 'Zone E', predicted: Math.floor(predictionSummary.predictedWaste * 0.25), risk: 'medium' },
+    ];
+
+    // Styles
+    const glassStyle = {
+        backgroundColor: 'rgba(31, 41, 55, 0.7)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderRadius: '0.75rem',
+        border: '1px solid rgba(75, 85, 99, 0.3)',
+        padding: '1.5rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+    };
+
+    const cardStyle = (gradient) => ({
+        background: gradient,
+        borderRadius: '0.75rem',
+        padding: '1.5rem',
+        color: 'white',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        height: '100%'
+    });
+
+    const labelStyle = {
+        color: '#9ca3af',
+        fontSize: '0.875rem',
+        fontWeight: '500',
+        marginBottom: '0.5rem',
+        display: 'block'
+    };
+
+    const inputStyle = {
+        width: '100%',
+        backgroundColor: 'rgba(55, 65, 81, 0.5)',
+        color: 'white',
+        border: '1px solid rgba(75, 85, 99, 0.5)',
+        borderRadius: '0.5rem',
+        padding: '0.5rem 0.75rem',
+        outline: 'none',
+        fontSize: '0.875rem',
+    };
+
     return (
-        <div className="min-h-screen bg-gray-900 p-6">
+        <div style={{ minHeight: '100vh', backgroundColor: '#111827', padding: '1.5rem', fontFamily: "'Inter', sans-serif" }}>
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-                    <FiActivity className="text-purple-500" />
+            <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '1.875rem', fontWeight: '800', color: 'white', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <FiActivity style={{ color: '#a78bfa' }} />
                     AI Predictions
                 </h1>
-                <p className="text-gray-400">
+                <p style={{ color: '#9ca3af', fontSize: '1rem' }}>
                     ML-based waste generation predictions and zone analysis
                 </p>
             </div>
 
             {/* Controls */}
-            <div className="bg-gray-800 rounded-lg p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div style={{ ...glassStyle, marginBottom: '5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', alignItems: 'end' }}>
                     {/* Bin Selector */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Select Bin
-                        </label>
+                        <label style={labelStyle}>Select Bin</label>
                         <select
                             value={selectedBin || ''}
                             onChange={(e) => setSelectedBin(e.target.value)}
-                            className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            style={{ ...inputStyle, cursor: 'pointer' }}
                         >
                             {bins.map((bin) => (
                                 <option key={bin.bin_id} value={bin.bin_id}>
@@ -112,18 +157,23 @@ const Predictions = () => {
 
                     {/* Time Range */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Time Range
-                        </label>
-                        <div className="flex gap-2">
+                        <label style={labelStyle}>Time Range</label>
+                        <div style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'rgba(55, 65, 81, 0.5)', padding: '4px', borderRadius: '0.5rem', width: 'fit-content' }}>
                             {['24h', '7d', '30d'].map((range) => (
                                 <button
                                     key={range}
                                     onClick={() => setTimeRange(range)}
-                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${timeRange === range
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                        }`}
+                                    style={{
+                                        padding: '0.375rem 1rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        border: 'none',
+                                        transition: 'all 0.2s ease',
+                                        backgroundColor: timeRange === range ? '#7c3aed' : 'transparent',
+                                        color: timeRange === range ? 'white' : '#d1d5db',
+                                    }}
                                 >
                                     {range}
                                 </button>
@@ -132,153 +182,162 @@ const Predictions = () => {
                     </div>
 
                     {/* Last Updated */}
-                    <div className="flex items-end">
-                        <div className="flex items-center gap-2 text-gray-400 text-sm">
-                            <FiClock />
-                            <span>Model updated: 2 minutes ago</span>
-                        </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#9ca3af', fontSize: '0.875rem', paddingBottom: '0.5rem' }}>
+                        <FiClock />
+                        <span>Model updated: 2 minutes ago</span>
                     </div>
                 </div>
             </div>
 
-            {/* Prediction Summary Cards - Gradient Style */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-blue-200 text-sm">Predicted Waste Today</p>
-                        <span className="text-xs bg-blue-500/30 text-blue-200 px-2 py-1 rounded-full">AI Predicted</span>
+            {/* Stats Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '5rem' }}>
+                {/* Blue Card */}
+                <div style={cardStyle('linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)')}>
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Predicted Waste Today</span>
+                            <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px' }}>AI</span>
+                        </div>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>
+                            {predictionSummary.predictedWaste.toLocaleString()} <span style={{ fontSize: '1rem', opacity: 0.8 }}>kg</span>
+                        </div>
                     </div>
-                    <p className="text-white text-3xl font-bold">
-                        {predictionSummary.predictedWaste.toLocaleString()}
-                        <span className="text-lg ml-1">kg</span>
-                    </p>
-                    <div className="flex items-center gap-1 text-blue-200 text-sm mt-2">
-                        <FiTrendingUp />
-                        <span>+12% from yesterday</span>
-                    </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-purple-200 text-sm">High-Risk Zones</p>
-                        <span className="text-xs bg-purple-500/30 text-purple-200 px-2 py-1 rounded-full">Alert</span>
-                    </div>
-                    <p className="text-white text-3xl font-bold">{predictionSummary.highRiskZones}</p>
-                    <div className="flex items-center gap-1 text-purple-200 text-sm mt-2">
-                        <FiMapPin />
-                        <span>Zones need attention</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.875rem', marginTop: '1rem', opacity: 0.9 }}>
+                        <FiTrendingUp /> +12% from yesterday
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-orange-200 text-sm flex items-center gap-2">
-                            <FiClock /> Peak Collection Time
-                        </p>
+                {/* Purple Card */}
+                <div style={cardStyle('linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)')}>
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>High-Risk Zones</span>
+                            <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px' }}>Alert</span>
+                        </div>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{predictionSummary.highRiskZones}</div>
                     </div>
-                    <p className="text-white text-3xl font-bold">{predictionSummary.peakTime}</p>
-                    <div className="text-orange-200 text-sm mt-2">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.875rem', marginTop: '1rem', opacity: 0.9 }}>
+                        <FiMapPin /> Zones need attention
+                    </div>
+                </div>
+
+                {/* Orange Card */}
+                <div style={cardStyle('linear-gradient(135deg, #c2410c 0%, #f97316 100%)')}>
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Peak Collection Time</span>
+                            <FiClock style={{ opacity: 0.8 }} />
+                        </div>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{predictionSummary.peakTime}</div>
+                    </div>
+                    <div style={{ fontSize: '0.875rem', marginTop: '1rem', opacity: 0.9 }}>
                         Optimal collection window
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-green-200 text-sm">Model Confidence</p>
-                        <span className="text-xs bg-green-500/30 text-green-200 px-2 py-1 rounded-full">AI Model</span>
+                {/* Green Card */}
+                <div style={cardStyle('linear-gradient(135deg, #15803d 0%, #22c55e 100%)')}>
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>Model Confidence</span>
+                            <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px' }}>High</span>
+                        </div>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{predictionSummary.confidence.toFixed(1)}%</div>
                     </div>
-                    <p className="text-white text-3xl font-bold">{predictionSummary.confidence}%</p>
-                    <div className="text-green-200 text-sm mt-2">
-                        High accuracy prediction
+                    <div style={{ fontSize: '0.875rem', marginTop: '1rem', opacity: 0.9 }}>
+                        R-Squared Score
                     </div>
                 </div>
             </div>
 
-            {/* Charts */}
-            <div className="bg-gray-800 rounded-lg mb-6">
-                <div className="border-b border-gray-700 p-4">
-                    <h3 className="text-xl font-semibold text-white">
-                        Predicted vs Actual Waste
-                    </h3>
-                    <p className="text-gray-400 text-sm">Comparison of ML predictions with actual data</p>
+            {/* Chart Section */}
+            <div style={{ ...glassStyle, marginBottom: '5rem' }}>
+                <div style={{ borderBottom: '1px solid rgba(75, 85, 99, 0.3)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: 'white', margin: 0 }}>Predicted vs Actual Waste</h3>
+                    <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.25rem' }}>Comparison of Machine Learning model predictions against ground truth.</p>
                 </div>
-                <div className="p-6">
-                    <ResponsiveContainer width="100%" height={350}>
-                        <LineChart data={predictionVsActualData[timeRange]}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                            <XAxis dataKey="time" stroke="#9CA3AF" />
-                            <YAxis stroke="#9CA3AF" />
+                <div style={{ height: '200px', width: '100%' }}>
+                    <ResponsiveContainer>
+                        <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(75, 85, 99, 0.3)" />
+                            <XAxis
+                                dataKey="time"
+                                stroke="#9ca3af"
+                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                tickLine={{ stroke: '#9ca3af' }}
+                            />
+                            <YAxis
+                                stroke="#9ca3af"
+                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                tickLine={{ stroke: '#9ca3af' }}
+                            />
                             <Tooltip
                                 contentStyle={{
-                                    backgroundColor: '#1F2937',
-                                    border: '1px solid #374151',
-                                    borderRadius: '8px'
+                                    backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                                    borderRadius: '0.5rem',
+                                    color: 'white',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
                                 }}
+                                itemStyle={{ color: '#e5e7eb' }}
                             />
-                            <Legend />
+                            <Legend wrapperStyle={{ color: '#d1d5db' }} />
                             <Line
                                 type="monotone"
                                 dataKey="predicted"
-                                stroke="#8B5CF6"
-                                strokeWidth={2}
-                                dot={{ fill: '#8B5CF6', strokeWidth: 0, r: 4 }}
+                                stroke="#a78bfa"
+                                strokeWidth={3}
+                                dot={{ fill: '#a78bfa', r: 4, strokeWidth: 0 }}
                                 name="Predicted"
+                                activeDot={{ r: 6 }}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="actual"
-                                stroke="#10B981"
-                                strokeWidth={2}
+                                stroke="#34d399"
+                                strokeWidth={3}
                                 strokeDasharray="5 5"
-                                dot={{ fill: '#10B981', strokeWidth: 0, r: 4 }}
+                                dot={{ fill: '#34d399', r: 4, strokeWidth: 0 }}
                                 name="Actual"
+                                activeDot={{ r: 6 }}
                             />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
             </div>
 
-            {/* Zone Analysis Table */}
-            <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">
-                    High-Risk Zone Analysis
-                </h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
+            {/* Table Section */}
+            <div style={glassStyle}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: 'white', marginBottom: '1.5rem' }}>High-Risk Zone Analysis</h3>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white' }}>
                         <thead>
-                            <tr className="border-b border-gray-700">
-                                <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Zone</th>
-                                <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Predicted Waste (kg)</th>
-                                <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Risk Level</th>
-                                <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Recommended Action</th>
+                            <tr style={{ borderBottom: '1px solid rgba(75, 85, 99, 0.5)' }}>
+                                <th style={{ textAlign: 'left', padding: '1rem', color: '#9ca3af', fontSize: '0.875rem', fontWeight: '500' }}>Zone</th>
+                                <th style={{ textAlign: 'left', padding: '1rem', color: '#9ca3af', fontSize: '0.875rem', fontWeight: '500' }}>Predicted Waste (kg)</th>
+                                <th style={{ textAlign: 'left', padding: '1rem', color: '#9ca3af', fontSize: '0.875rem', fontWeight: '500' }}>Risk Level</th>
+                                <th style={{ textAlign: 'left', padding: '1rem', color: '#9ca3af', fontSize: '0.875rem', fontWeight: '500' }}>Recommended Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {zoneWiseData.map((zone, index) => (
-                                <tr
-                                    key={index}
-                                    className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
-                                >
-                                    <td className="py-3 px-4 text-sm text-white font-medium">{zone.zone}</td>
-                                    <td className="py-3 px-4 text-sm text-white">{zone.predicted}</td>
-                                    <td className="py-3 px-4">
-                                        <span
-                                            className={`px-2 py-1 rounded-full text-xs font-medium ${zone.risk === 'high'
-                                                    ? 'bg-red-500/20 text-red-400'
-                                                    : zone.risk === 'medium'
-                                                        ? 'bg-yellow-500/20 text-yellow-400'
-                                                        : 'bg-green-500/20 text-green-400'
-                                                }`}
-                                        >
+                                <tr key={index} style={{ borderBottom: '1px solid rgba(75, 85, 99, 0.2)', transition: 'background-color 0.2s' }}>
+                                    <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{zone.zone}</td>
+                                    <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{zone.predicted}</td>
+                                    <td style={{ padding: '1rem' }}>
+                                        <span style={{
+                                            padding: '0.25rem 0.75rem',
+                                            borderRadius: '9999px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '600',
+                                            backgroundColor: zone.risk === 'high' ? 'rgba(239, 68, 68, 0.2)' : zone.risk === 'medium' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                                            color: zone.risk === 'high' ? '#fca5a5' : zone.risk === 'medium' ? '#fcd34d' : '#6ee7b7'
+                                        }}>
                                             {zone.risk.toUpperCase()}
                                         </span>
                                     </td>
-                                    <td className="py-3 px-4 text-sm text-gray-400">
-                                        {zone.risk === 'high'
-                                            ? 'Deploy additional vehicle'
-                                            : zone.risk === 'medium'
-                                                ? 'Monitor closely'
-                                                : 'Standard collection'}
+                                    <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#d1d5db' }}>
+                                        {zone.risk === 'high' ? 'Deploy additional vehicle' : zone.risk === 'medium' ? 'Monitor closely' : 'Standard collection'}
                                     </td>
                                 </tr>
                             ))}
