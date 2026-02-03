@@ -16,5 +16,5 @@ geopy==2.4.1
 folium==0.15.1
 statsmodels==0.14.1
 matplotlib==3.8.2
-supabase==2.10.0
-PyJWT==2.8.0
+supabase>=2.10.0
+PyJWT>=2.8.0

@@ -7,10 +7,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true
-    }
-});
+// Safe initialization to prevent crash during migration
+let supabase = null;
+
+if (supabaseUrl && supabaseUrl.startsWith('http') && supabaseAnonKey) {
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: (import.meta.env.VITE_AUTH_PROVIDER === 'clerk') ? {
+            autoRefreshToken: false,
+            persistSession: false
+        } : {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true
+        }
+    });
+} else {
+    console.warn('Supabase not initialized: Missing or invalid environment variables.');
+}
+
+export { supabase };

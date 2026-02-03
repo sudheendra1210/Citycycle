@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../config/supabase';
+import React, { createContext, useContext } from 'react';
+import { useUser, useClerk } from '@clerk/clerk-react';
 
 const AuthContext = createContext({});
 
@@ -12,131 +12,26 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [session, setSession] = useState(null);
+    const { user, isLoaded, isSignedIn } = useUser();
+    const { signOut, openSignIn, openSignUp } = useClerk();
 
-    useEffect(() => {
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
-
-        // Listen for auth changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
-    const signUp = async (email, password, metadata = {}) => {
-        try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: metadata,
-                },
-            });
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    };
-
-    const signIn = async (email, password) => {
-        try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    };
-
-    const signInWithGoogle = async () => {
-        try {
-            const { data, error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: `${window.location.origin}/`,
-                },
-            });
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    };
-
-    const signOut = async () => {
-        try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
-            return { error: null };
-        } catch (error) {
-            return { error };
-        }
-    };
-
-    const resetPassword = async (email) => {
-        try {
-            const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/reset-password`,
-            });
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    };
-
-    const updateProfile = async (updates) => {
-        try {
-            const { data, error } = await supabase.auth.updateUser({
-                data: updates,
-            });
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    };
-
-    const signInWithPhone = async (phone) => {
-        try {
-            const { data, error } = await supabase.auth.signInWithOtp({
-                phone,
-            });
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    };
+    // Adapter to match previous Supabase user structure where possible
+    const adaptedUser = user ? {
+        id: user.id,
+        email: user.primaryEmailAddress?.emailAddress,
+        user_metadata: user.publicMetadata,
+        fullName: user.fullName,
+        avatarUrl: user.imageUrl,
+    } : null;
 
     const value = {
-        user,
-        session,
-        loading,
-        signUp,
-        signIn,
-        signInWithGoogle,
-        signInWithPhone,
-        signOut,
-        resetPassword,
-        updateProfile,
+        user: adaptedUser,
+        loading: !isLoaded,
+        isAuthenticated: isSignedIn,
+        signOut: async () => await signOut(),
+        // These open the Clerk modals/pages
+        signIn: () => openSignIn(),
+        signUp: () => openSignUp(),
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
