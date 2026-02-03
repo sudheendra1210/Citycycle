@@ -26,9 +26,10 @@
 
 ### Backend
 - **Framework**: FastAPI (Python)
-- **Database**: SQLite with SQLAlchemy ORM
+- **Database**: SQLite with SQLAlchemy ORM (for storing analytical sensor data and ML training records)
+- **Authentication**: Supabase Auth
 - **ML/Data**: Scikit-learn, Pandas, NumPy
-- **Storage**: Supabase Integration
+- **Storage/Live Config**: Supabase Integration
 
 ---
 
