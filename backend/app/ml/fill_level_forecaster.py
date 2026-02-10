@@ -243,38 +243,59 @@ class FillLevelForecaster:
         if model_type == 'arima' and ARIMA_AVAILABLE:
             return self._predict_arima(hours_ahead, current_fill, current_time)
         
-        # For regression models, create future features
+        # For regression models, use recursive multi-step forecasting
         predictions = []
-        last_row = df.iloc[-1:].copy()
+        
+        # Prepare context buffer (need enough rows for lags and rolling windows)
+        # We'll maintain a sliding window of historical + predicted data
+        context_df = df.copy()
         
         for hour in range(1, hours_ahead + 1):
             future_time = current_time + timedelta(hours=hour)
             
-            # Create feature row for future time
-            future_features = self._create_future_features(
-                last_row, future_time, bin_info
-            )
+            # 1. Create a placeholder row for the next hour
+            # Use the previous prediction (or current_fill if first step) as a starting point
+            prev_fill = predictions[-1]['predicted_fill_level'] if predictions else current_fill
+            new_row = pd.DataFrame([{
+                'timestamp': future_time,
+                'fill_level_percent': prev_fill
+            }])
+            
+            # 2. Add to context and re-engineer features
+            # We only need the last 50-100 rows for lags/rolling features
+            predict_buffer = pd.concat([context_df, new_row], ignore_index=True).tail(100)
+            
+            # Apply all feature engineering steps to the buffer
+            processed_buffer = self.feature_engineer.extract_time_features(predict_buffer)
+            processed_buffer = self.feature_engineer.extract_lag_features(processed_buffer)
+            processed_buffer = self.feature_engineer.extract_rolling_features(processed_buffer)
+            processed_buffer = self.feature_engineer.extract_rate_features(processed_buffer)
+            processed_buffer = self.feature_engineer.add_bin_metadata(processed_buffer, bin_info)
+            
+            # 3. Extract the features for the current prediction step (the last row)
+            step_features = processed_buffer.iloc[-1:]
             
             # Ensure all required features are present
             for col in self.feature_columns:
-                if col not in future_features.columns:
-                    future_features[col] = 0
+                if col not in step_features.columns:
+                    step_features[col] = 0
             
-            future_features = future_features[self.feature_columns]
+            step_input = step_features[self.feature_columns]
             
-            # Predict
+            # 4. Predict
             model = self.models[model_type]
-            predicted_fill = model.predict(future_features)[0]
+            predicted_fill = model.predict(step_input)[0]
             predicted_fill = np.clip(predicted_fill, 0, 100)
             
+            # 5. Store prediction and update context for next step
             predictions.append({
                 'timestamp': future_time,
                 'predicted_fill_level': round(predicted_fill, 2)
             })
             
-            # Update last_row for next iteration
-            last_row['fill_level_percent'] = predicted_fill
-            last_row['timestamp'] = future_time
+            # Update the fill level in our context buffer for the next iteration
+            context_df = pd.concat([context_df, new_row], ignore_index=True).tail(100)
+            context_df.iloc[-1, context_df.columns.get_loc('fill_level_percent')] = predicted_fill
         
         # Calculate when bin will be full
         hours_until_full = None

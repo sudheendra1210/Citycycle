@@ -1,8 +1,3 @@
-/**
- * Predictive Chart Component
- * Line chart showing historical data + future predictions
- */
-
 import React from 'react';
 import {
     LineChart,
@@ -18,7 +13,6 @@ import {
 import { format } from 'date-fns';
 
 const PredictiveChart = ({ historicalData = [], predictedData = [], height = 300 }) => {
-    // Combine historical and predicted data
     const chartData = [
         ...historicalData.map(d => ({
             timestamp: new Date(d.timestamp).getTime(),
@@ -34,29 +28,22 @@ const PredictiveChart = ({ historicalData = [], predictedData = [], height = 300
         }))
     ].sort((a, b) => a.timestamp - b.timestamp);
 
-    // Custom tooltip
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
             return (
-                <div style={{
-                    backgroundColor: '#1f2937',
-                    border: '1px solid #4b5563',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                }}>
-                    <p style={{ color: 'white', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem', margin: 0 }}>
+                <div className="bg-card border border-border rounded-xl p-4 shadow-xl">
+                    <p className="text-foreground font-bold text-sm mb-1">
                         {format(new Date(data.timestamp), 'MMM dd, HH:mm')}
                     </p>
                     {data.actual !== null && (
-                        <p style={{ color: '#60a5fa', fontSize: '0.875rem', margin: 0 }}>
-                            Actual: {data.actual.toFixed(1)}%
+                        <p className="text-secondary-foreground text-xs">
+                            Actual: <span className="font-bold">{data.actual.toFixed(1)}%</span>
                         </p>
                     )}
                     {data.predicted !== null && (
-                        <p style={{ color: '#a78bfa', fontSize: '0.875rem', margin: 0 }}>
-                            Predicted: {data.predicted.toFixed(1)}%
+                        <p className="text-accent text-xs">
+                            Predicted: <span className="font-bold">{data.predicted.toFixed(1)}%</span>
                         </p>
                     )}
                 </div>
@@ -65,80 +52,68 @@ const PredictiveChart = ({ historicalData = [], predictedData = [], height = 300
         return null;
     };
 
-    // Format X-axis
-    const formatXAxis = (timestamp) => {
-        return format(new Date(timestamp), 'MMM dd');
-    };
-
     if (chartData.length === 0) {
         return (
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '200px',
-                backgroundColor: '#1f2937',
-                borderRadius: '0.5rem'
-            }}>
-                <p style={{ color: '#9ca3af' }}>No data available</p>
+            <div className="flex items-center justify-center min-h-[200px] bg-muted/5 rounded-xl border border-dashed border-border">
+                <p className="text-muted-foreground font-medium">No data available for this bin</p>
             </div>
         );
     }
 
     return (
-        <div style={{ backgroundColor: '#1f2937', borderRadius: '0.5rem', padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="w-full">
             <ResponsiveContainer width="100%" height={height}>
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                     <XAxis
                         dataKey="timestamp"
-                        tickFormatter={formatXAxis}
-                        stroke="#9CA3AF"
-                        style={{ fontSize: '11px' }}
+                        tickFormatter={(t) => format(new Date(t), 'MMM dd')}
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={11}
+                        fontWeight={500}
+                        tickLine={false}
+                        axisLine={false}
                     />
                     <YAxis
                         domain={[0, 100]}
-                        stroke="#9CA3AF"
-                        style={{ fontSize: '11px' }}
-                        label={{ value: 'Fill Level (%)', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: '11px' } }}
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={11}
+                        fontWeight={500}
+                        tickLine={false}
+                        axisLine={false}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend
-                        wrapperStyle={{ fontSize: '12px' }}
-                        iconType="line"
+                        wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: 'bold' }}
+                        iconType="circle"
                     />
 
-                    {/* Threshold line at 80% */}
                     <ReferenceLine
                         y={80}
-                        stroke="#EF4444"
+                        stroke="var(--color-destructive)"
                         strokeDasharray="5 5"
-                        label={{ value: 'Coll.', position: 'right', fill: '#EF4444', fontSize: 10 }}
+                        label={{ value: 'MAX', position: 'right', fill: 'var(--color-destructive)', fontSize: 10, fontWeight: 'bold' }}
                     />
 
-                    {/* Historical data line */}
                     <Line
                         type="monotone"
                         dataKey="actual"
-                        stroke="#3B82F6"
-                        strokeWidth={2}
-                        dot={{ fill: '#3B82F6', r: 2 }}
-                        activeDot={{ r: 4 }}
+                        stroke="var(--color-foreground)"
+                        strokeWidth={4}
+                        dot={false}
+                        activeDot={{ r: 6, strokeWidth: 0 }}
                         name="Historical"
-                        connectNulls={false}
                     />
 
-                    {/* Predicted data line */}
                     <Line
                         type="monotone"
                         dataKey="predicted"
-                        stroke="#A855F7"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        dot={{ fill: '#A855F7', r: 2 }}
-                        activeDot={{ r: 4 }}
+                        stroke="var(--color-accent)"
+                        strokeWidth={4}
+                        strokeDasharray="8 5"
+                        dot={false}
+                        activeDot={{ r: 6, strokeWidth: 0 }}
                         name="Predicted"
-                        connectNulls={false}
                     />
                 </LineChart>
             </ResponsiveContainer>

@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { supabase } from '../config/supabase';
+// No longer using Supabase for auth
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -14,16 +14,15 @@ const api = axios.create({
 api.interceptors.request.use(
     async (config) => {
         try {
-            // Get current session
-            const { data: { session } } = await supabase.auth.getSession();
-
-            // Add token to headers if available
-            if (session?.access_token) {
-                config.headers.Authorization = `Bearer ${session.access_token}`;
+            // Get token from Clerk
+            if (window.Clerk?.session) {
+                const token = await window.Clerk.session.getToken();
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
             }
         } catch (error) {
-            // If getting session fails, continue without auth token
-            console.log('No active session');
+            console.error('Error fetching Clerk token:', error);
         }
 
         return config;

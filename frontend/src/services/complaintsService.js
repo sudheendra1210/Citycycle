@@ -2,8 +2,9 @@ import api from './api';
 
 export const complaintsService = {
     // Get all complaints
-    getAllComplaints: async () => {
-        const response = await api.get('/api/complaints');
+    getAllComplaints: async (areaName) => {
+        const url = areaName ? `/api/complaints?area_name=${encodeURIComponent(areaName)}` : '/api/complaints';
+        const response = await api.get(url);
         return response.data;
     },
 

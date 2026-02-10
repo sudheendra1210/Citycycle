@@ -7,6 +7,8 @@ from app.utils.database import get_db
 from app.middleware.auth import get_optional_user
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
+from geopy.distance import geodesic
+from geopy.distance import geodesic
 
 router = APIRouter()
 
@@ -14,11 +16,16 @@ router = APIRouter()
 def get_all_bins(
     skip: int = 0, 
     limit: int = 100, 
+    area_name: Optional[str] = None,
     db: Session = Depends(get_db),
     user: Optional[Dict] = Depends(get_optional_user)
 ):
-    """Get all bins with their current status"""
-    bins = db.query(Bin).offset(skip).limit(limit).all()
+    """Get all bins with their current status, optionally filtered by area"""
+    query = db.query(Bin)
+    if area_name:
+        query = query.filter(Bin.area_name == area_name)
+        
+    bins = query.offset(skip).limit(limit).all()
     
     # Enrich with current fill level
     for bin in bins:
@@ -117,3 +124,51 @@ def get_high_fill_bins(threshold: float = 80.0, db: Session = Depends(get_db)):
             bin.current_fill_level = reading.fill_level_percent
     
     return bins
+
+@router.get("/nearby", response_model=List[Dict])
+def get_nearby_bins(
+    lat: float,
+    lng: float,
+    radius_km: float = 5.0,
+    db: Session = Depends(get_db)
+):
+    """Get bins within a radius, sorted by distance"""
+    bins = db.query(Bin).all()
+    nearby_bins = []
+    
+    user_coords = (lat, lng)
+    
+    for bin in bins:
+        bin_coords = (bin.latitude, bin.longitude)
+        distance = geodesic(user_coords, bin_coords).km
+        
+        if distance <= radius_km:
+            # Get latest reading
+            latest_reading = db.query(BinReading).filter(
+                BinReading.bin_id == bin.bin_id
+            ).order_by(desc(BinReading.timestamp)).first()
+            
+            fill_level = latest_reading.fill_level_percent if latest_reading else 0
+            
+            # Determine status
+            status = "Empty"
+            if fill_level > 80:
+                status = "Full"
+            elif fill_level > 40:
+                status = "Partially Filled"
+            
+            nearby_bins.append({
+                "bin_id": bin.bin_id,
+                "latitude": bin.latitude,
+                "longitude": bin.longitude,
+                "distance_km": round(distance, 2),
+                "fill_level": fill_level,
+                "status": status,
+                "bin_type": bin.bin_type.value,
+                "zone": bin.zone
+            })
+            
+    # Sort by distance
+    nearby_bins.sort(key=lambda x: x["distance_km"])
+    
+    return nearby_bins

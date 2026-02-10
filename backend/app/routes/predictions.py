@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.models.database_models import Bin, BinReading
-from app.models.schemas import FillLevelPrediction, RouteOptimization
 from app.utils.database import get_db
 from app.ml.predictor import predict_fill_level
 from app.ml.route_optimizer import optimize_collection_route
-from typing import List
+from typing import List, Dict
 from datetime import datetime
+from app.models.schemas import FillLevelPrediction, RouteOptimization, RouteOptimizationRequest
 
 router = APIRouter()
 
@@ -34,11 +34,13 @@ def predict_bin_fill_level(bin_id: str, hours_ahead: int = 24, db: Session = Dep
 
 @router.post("/route-optimization", response_model=RouteOptimization)
 def optimize_route(
-    vehicle_id: str,
-    threshold: float = 80.0,
+    request: RouteOptimizationRequest,
     db: Session = Depends(get_db)
 ):
     """Optimize collection route for bins above threshold"""
+    
+    vehicle_id = request.vehicle_id
+    threshold = request.threshold
     
     # Get bins needing collection
     from sqlalchemy.sql import func
@@ -71,12 +73,16 @@ def optimize_route(
     
     return optimized_route
 
-@router.get("/predictions/all-bins")
-def predict_all_bins(threshold: float = 70.0, db: Session = Depends(get_db)):
-    """Get predictions for all bins above threshold"""
+@router.get("/all-bins")
+def predict_all_bins(area_name: str = None, threshold: float = 70.0, db: Session = Depends(get_db)):
+    """Get predictions for all bins above threshold, optionally filtered by area"""
     
-    # Get all bins
-    bins = db.query(Bin).all()
+    # Get bins
+    bin_query = db.query(Bin)
+    if area_name:
+        bin_query = bin_query.filter(Bin.area_name == area_name)
+    
+    bins = bin_query.all()
     
     predictions = []
     for bin in bins:
@@ -93,3 +99,29 @@ def predict_all_bins(threshold: float = 70.0, db: Session = Depends(get_db)):
                 continue
     
     return sorted(predictions, key=lambda x: x.get('hours_until_full', 999))
+
+@router.post("/bin-fill")
+def predict_specific_bin_fill(
+    payload: Dict,
+    db: Session = Depends(get_db)
+):
+    """Predict fill level for a specific bin passed in JSON body"""
+    bin_id = payload.get("bin_id")
+    hours_ahead = payload.get("hours_ahead", 24)
+    
+    if not bin_id:
+        raise HTTPException(status_code=400, detail="bin_id is required")
+        
+    bin = db.query(Bin).filter(Bin.bin_id == bin_id).first()
+    if not bin:
+        raise HTTPException(status_code=404, detail="Bin not found")
+        
+    readings = db.query(BinReading).filter(
+        BinReading.bin_id == bin_id
+    ).order_by(BinReading.timestamp.desc()).limit(100).all()
+    
+    if len(readings) < 5:
+        raise HTTPException(status_code=400, detail="Not enough data")
+        
+    prediction = predict_fill_level(readings, hours_ahead)
+    return prediction

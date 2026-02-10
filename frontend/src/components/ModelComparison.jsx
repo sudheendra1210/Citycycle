@@ -1,8 +1,3 @@
-/**
- * Model Comparison Component
- * Bar chart comparing performance of different ML models
- */
-
 import React from 'react';
 import {
     BarChart,
@@ -19,22 +14,14 @@ import {
 const ModelComparison = ({ comparisonData, height = 300 }) => {
     if (!comparisonData || !comparisonData.all_metrics) {
         return (
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '256px',
-                backgroundColor: '#1f2937',
-                borderRadius: '0.5rem'
-            }}>
-                <p style={{ color: '#9ca3af' }}>No comparison data available</p>
+            <div className="flex items-center justify-center h-[256px] bg-muted/5 rounded-xl border border-dashed border-border">
+                <p className="text-muted-foreground font-medium">No comparison data available</p>
             </div>
         );
     }
 
     const { all_metrics, recommended_model } = comparisonData;
 
-    // Prepare data for chart
     const chartData = Object.entries(all_metrics)
         .filter(([_, metrics]) => !metrics.error)
         .map(([model, metrics]) => ({
@@ -46,42 +33,28 @@ const ModelComparison = ({ comparisonData, height = 300 }) => {
             isRecommended: model === recommended_model
         }));
 
-    // Colors for bars
     const COLORS = {
-        RMSE: '#EF4444',
-        MAE: '#F59E0B',
-        'R² Score': '#10B981',
-        'Accuracy': '#3B82F6'
+        RMSE: 'var(--color-destructive)',
+        MAE: '#f59e0b',
+        'R² Score': '#10b981',
+        'Accuracy': 'var(--color-accent)'
     };
 
-    // Custom tooltip
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
             return (
-                <div style={{
-                    backgroundColor: '#1f2937',
-                    border: '1px solid #4b5563',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                }}>
-                    <p style={{ color: 'white', fontWeight: 500, marginBottom: '0.5rem', margin: 0 }}>
+                <div className="bg-card border border-border rounded-xl p-4 shadow-xl">
+                    <p className="text-foreground font-bold text-sm mb-2">
                         {data.model}
                         {data.isRecommended && (
-                            <span style={{
-                                marginLeft: '0.5rem',
-                                fontSize: '0.75rem',
-                                backgroundColor: '#16a34a',
-                                padding: '0.25rem 0.5rem',
-                                borderRadius: '0.25rem'
-                            }}>
-                                Recommended
+                            <span className="ml-2 text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                Best
                             </span>
                         )}
                     </p>
                     {payload.map((entry, index) => (
-                        <p key={index} style={{ fontSize: '0.875rem', color: entry.color, margin: '0.25rem 0' }}>
+                        <p key={index} className="text-xs font-medium" style={{ color: entry.color }}>
                             {entry.name}: {entry.value.toFixed(2)}
                             {entry.name === 'R² Score' || entry.name === 'Accuracy' ? '%' : ''}
                         </p>
@@ -93,79 +66,50 @@ const ModelComparison = ({ comparisonData, height = 300 }) => {
     };
 
     return (
-        <div style={{ backgroundColor: '#1f2937', borderRadius: '0.5rem', padding: '1rem' }}>
-            <div style={{ marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'white', marginBottom: '0.5rem', marginTop: 0 }}>
-                    Model Performance Comparison
-                </h3>
-                {recommended_model && (
-                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: 0 }}>
-                        Recommended: <span style={{ color: '#4ade80', fontWeight: 500 }}>
-                            {recommended_model.charAt(0).toUpperCase() + recommended_model.slice(1)}
-                        </span>
-                    </p>
-                )}
-            </div>
-
+        <div className="w-full">
             <ResponsiveContainer width="100%" height={height}>
-                <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <BarChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                     <XAxis
                         dataKey="model"
-                        stroke="#9CA3AF"
-                        style={{ fontSize: '12px' }}
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={12}
+                        fontWeight={500}
+                        axisLine={false}
+                        tickLine={false}
                     />
                     <YAxis
-                        stroke="#9CA3AF"
-                        style={{ fontSize: '12px' }}
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={12}
+                        fontWeight={500}
+                        axisLine={false}
+                        tickLine={false}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: 'bold' }} />
 
-                    <Bar dataKey="RMSE" fill={COLORS.RMSE} radius={[4, 4, 0, 0]}>
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-rmse-${index}`} fill={entry.isRecommended ? '#DC2626' : COLORS.RMSE} />
-                        ))}
-                    </Bar>
-                    <Bar dataKey="MAE" fill={COLORS.MAE} radius={[4, 4, 0, 0]}>
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-mae-${index}`} fill={entry.isRecommended ? '#D97706' : COLORS.MAE} />
-                        ))}
-                    </Bar>
-                    <Bar dataKey="R² Score" fill={COLORS['R² Score']} radius={[4, 4, 0, 0]}>
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-r2-${index}`} fill={entry.isRecommended ? '#059669' : COLORS['R² Score']} />
-                        ))}
-                    </Bar>
-                    <Bar dataKey="Accuracy" fill={COLORS.Accuracy} radius={[4, 4, 0, 0]}>
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-acc-${index}`} fill={entry.isRecommended ? '#2563EB' : COLORS.Accuracy} />
-                        ))}
-                    </Bar>
+                    <Bar dataKey="RMSE" fill={COLORS.RMSE} radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="MAE" fill={COLORS.MAE} radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="R² Score" fill={COLORS['R² Score']} radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="Accuracy" fill={COLORS.Accuracy} radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
             </ResponsiveContainer>
 
-            {/* Metrics explanation */}
-            <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-                <div style={{ backgroundColor: '#374151', borderRadius: '0.5rem', padding: '0.75rem' }}>
-                    <p style={{ color: '#f87171', fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>RMSE (Lower is better)</p>
-                    <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: 0, marginTop: '0.25rem' }}>Root Mean Squared Error</p>
-                </div>
-                <div style={{ backgroundColor: '#374151', borderRadius: '0.5rem', padding: '0.75rem' }}>
-                    <p style={{ color: '#fb923c', fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>MAE (Lower is better)</p>
-                    <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: 0, marginTop: '0.25rem' }}>Mean Absolute Error</p>
-                </div>
-                <div style={{ backgroundColor: '#374151', borderRadius: '0.5rem', padding: '0.75rem' }}>
-                    <p style={{ color: '#4ade80', fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>R² Score (Higher is better)</p>
-                    <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: 0, marginTop: '0.25rem' }}>Goodness of fit</p>
-                </div>
-                <div style={{ backgroundColor: '#374151', borderRadius: '0.5rem', padding: '0.75rem' }}>
-                    <p style={{ color: '#60a5fa', fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>Accuracy (Higher is better)</p>
-                    <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: 0, marginTop: '0.25rem' }}>Within 5% tolerance</p>
-                </div>
+            <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <MetricInfo label="RMSE" desc="Lower Error" color="text-destructive" />
+                <MetricInfo label="MAE" desc="Lower Better" color="text-yellow-500" />
+                <MetricInfo label="R² Score" desc="Better Fit" color="text-green-500" />
+                <MetricInfo label="Accuracy" desc="Top Score" color="text-accent" />
             </div>
         </div>
     );
 };
+
+const MetricInfo = ({ label, desc, color }) => (
+    <div className="bg-muted/10 rounded-lg p-3 border border-border/50 text-center">
+        <p className={`text-sm font-bold ${color}`}>{label}</p>
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">{desc}</p>
+    </div>
+);
 
 export default ModelComparison;

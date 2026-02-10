@@ -1,27 +1,29 @@
 import { useState, useEffect } from 'react';
-import { MdLocationOn as MapPin, MdSend as Send } from 'react-icons/md';
+import { MdLocationOn as MapPin, MdSend as Send, MdInfo as Info } from 'react-icons/md';
 import { complaintsService } from '../services/complaintsService';
+import { useLocation } from '../contexts/LocationContext';
 
 const Complaints = () => {
+    const { coords, areaName, loading: locationLoading, permissionStatus } = useLocation();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState({
         complaint_type: 'overflowing_bin',
-        latitude: 17.3850,
-        longitude: 78.4867,
         description: '',
         urgency: 'medium',
     });
 
     useEffect(() => {
-        fetchComplaints();
-    }, []);
+        if (!locationLoading) {
+            fetchComplaints();
+        }
+    }, [locationLoading, areaName]);
 
     const fetchComplaints = async () => {
         try {
             setLoading(true);
-            const data = await complaintsService.getAllComplaints();
+            const data = await complaintsService.getAllComplaints(areaName === 'Global View' ? null : areaName);
             setComplaints(data);
         } catch (error) {
             console.error('Error fetching complaints:', error);
@@ -32,13 +34,24 @@ const Complaints = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!coords) {
+            alert("Location access is required to submit a complaint. Please enable location permissions.");
+            return;
+        }
+
         try {
-            await complaintsService.createComplaint(formData);
+            const submissionData = {
+                ...formData,
+                latitude: coords.lat,
+                longitude: coords.lng,
+                area_name: areaName
+            };
+
+            await complaintsService.createComplaint(submissionData);
             setShowForm(false);
             setFormData({
                 complaint_type: 'overflowing_bin',
-                latitude: 17.3850,
-                longitude: 78.4867,
                 description: '',
                 urgency: 'medium',
             });
@@ -175,34 +188,25 @@ const Complaints = () => {
                                     <option value="high">High</option>
                                 </select>
                             </div>
+                        </div>
 
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#9ca3af', marginBottom: '0.5rem' }}>
-                                    Latitude
-                                </label>
-                                <input
-                                    type="number"
-                                    step="0.000001"
-                                    value={formData.latitude}
-                                    onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
-                                    style={inputStyle}
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#9ca3af', marginBottom: '0.5rem' }}>
-                                    Longitude
-                                </label>
-                                <input
-                                    type="number"
-                                    step="0.000001"
-                                    value={formData.longitude}
-                                    onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
-                                    style={inputStyle}
-                                    required
-                                />
-                            </div>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.75rem',
+                            backgroundColor: '#374151',
+                            borderRadius: '0.5rem',
+                            border: '1px border #4b5563',
+                            fontSize: '0.875rem',
+                            color: coords ? '#10b981' : '#f59e0b'
+                        }}>
+                            <MapPin size={18} />
+                            <span>
+                                {coords
+                                    ? `Location detected: ${areaName}`
+                                    : "Pinpointing your location..."}
+                            </span>
                         </div>
 
                         <div>
@@ -259,8 +263,8 @@ const Complaints = () => {
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, color: '#e5e7eb', margin: 0, textTransform: 'capitalize' }}>
-                                            {complaint.complaint_type.replace(/_/g, ' ')}
+                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, color: '#8b5cf6', margin: 0 }}>
+                                            {complaint.area_name || "Local Area"} – {complaint.bin_id || "Global"}
                                         </h4>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                                             <span style={badgeStyle(getStatusColor(complaint.status))}>
@@ -270,6 +274,12 @@ const Complaints = () => {
                                                 {complaint.urgency.replace(/_/g, ' ')}
                                             </span>
                                         </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                        <h5 style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e5e7eb', margin: 0, textTransform: 'capitalize' }}>
+                                            {complaint.complaint_type.replace(/_/g, ' ')}
+                                        </h5>
                                     </div>
 
                                     {complaint.description && (
@@ -284,7 +294,7 @@ const Complaints = () => {
                                         <span>
                                             {new Date(complaint.timestamp).toLocaleDateString()} at {new Date(complaint.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
-                                        <span>ID: {complaint.complaint_id}</span>
+                                        <span style={{ color: '#8b5cf6', fontWeight: 500 }}>ID: {complaint.complaint_id}</span>
                                     </div>
                                 </div>
                             </div>

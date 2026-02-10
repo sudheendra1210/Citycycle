@@ -13,27 +13,45 @@ router = APIRouter()
 @router.get("/", response_model=List[ComplaintResponse])
 def get_complaints(
     status: str = None,
+    area_name: str = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """Get all complaints, optionally filtered by status"""
+    """Get all complaints, optionally filtered by status or area"""
     query = db.query(Complaint)
     
     if status:
         query = query.filter(Complaint.status == status)
+    if area_name:
+        query = query.filter(Complaint.area_name == area_name)
     
     complaints = query.order_by(desc(Complaint.timestamp)).offset(skip).limit(limit).all()
     return complaints
 
 @router.post("/", response_model=ComplaintResponse)
 def create_complaint(complaint: ComplaintCreate, db: Session = Depends(get_db)):
-    """Create a new citizen complaint"""
+    """Create a new citizen complaint with auto-linking to nearest bin"""
+    from geopy.distance import geodesic
+    from app.models.database_models import Bin
+
+    complaint_data = complaint.dict()
     complaint_id = f"CMP_{uuid.uuid4().hex[:8].upper()}"
     
+    # Auto-link to nearest bin if bin_id is not provided
+    if not complaint_data.get("bin_id"):
+        bins = db.query(Bin).all()
+        if bins:
+            user_loc = (complaint_data["latitude"], complaint_data["longitude"])
+            closest_bin = min(
+                bins, 
+                key=lambda b: geodesic(user_loc, (b.latitude, b.longitude)).km
+            )
+            complaint_data["bin_id"] = closest_bin.bin_id
+
     db_complaint = Complaint(
         complaint_id=complaint_id,
-        **complaint.dict()
+        **complaint_data
     )
     db.add(db_complaint)
     db.commit()

@@ -34,6 +34,7 @@ class BinBase(BaseModel):
     bin_id: str
     latitude: float
     longitude: float
+    area_name: Optional[str] = None
     capacity_liters: int
     bin_type: BinTypeEnum
     sensor_type: str
@@ -113,6 +114,8 @@ class ComplaintCreate(BaseModel):
     complaint_type: ComplaintTypeEnum
     latitude: float
     longitude: float
+    area_name: Optional[str] = None
+    bin_id: Optional[str] = None
     description: Optional[str] = None
     urgency: str = "medium"
 
@@ -123,6 +126,8 @@ class ComplaintResponse(BaseModel):
     complaint_type: ComplaintTypeEnum
     latitude: float
     longitude: float
+    area_name: Optional[str] = None
+    bin_id: Optional[str] = None
     description: Optional[str] = None
     urgency: str
     status: ComplaintStatusEnum
@@ -147,3 +152,7 @@ class RouteOptimization(BaseModel):
     total_distance_km: float
     estimated_duration_minutes: float
     optimized_sequence: list[dict]
+
+class RouteOptimizationRequest(BaseModel):
+    vehicle_id: str
+    threshold: float = 80.0

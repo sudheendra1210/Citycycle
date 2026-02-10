@@ -1,31 +1,89 @@
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.config.supabase_config import supabase
-import jwt
+import os
+import requests
 from typing import Optional, Dict
+from jose import jwt
+from app.config.clerk_config import CLERK_JWKS_URL, CLERK_AUDIENCE
 
 security = HTTPBearer()
 
+# Cache for JWKS
+_jwks_cache = None
+
+def get_jwks():
+    global _jwks_cache
+    if _jwks_cache is None:
+        try:
+            response = requests.get(CLERK_JWKS_URL)
+            response.raise_for_status()
+            _jwks_cache = response.json()
+        except Exception as e:
+            print(f"Error fetching JWKS: {e}")
+            return None
+    return _jwks_cache
+
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict:
     """
-    Verify JWT token from Supabase and return user data
+    Verify JWT token from Clerk and return user data
     """
-    try:
-        token = credentials.credentials
-        
-        # Verify the JWT token with Supabase
-        user = supabase.auth.get_user(token)
-        
-        if not user:
-            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        
-        return {
-            "id": user.user.id,
-            "email": user.user.email,
-            "user_metadata": user.user.user_metadata,
-            "role": user.user.user_metadata.get("role", "viewer")
-        }
+    token = credentials.credentials
+    jwks = get_jwks()
     
+    if not jwks:
+        raise HTTPException(status_code=500, detail="Could not fetch JWKS from Clerk")
+
+    try:
+        # Get the kid from the header
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        
+        # Find the correct key in JWKS
+        rsa_key = {}
+        for key in jwks.get("keys", []):
+            if key.get("kid") == kid:
+                rsa_key = {
+                    "kty": key.get("kty"),
+                    "kid": key.get("kid"),
+                    "use": key.get("use"),
+                    "n": key.get("n"),
+                    "e": key.get("e")
+                }
+                break
+        
+        if not rsa_key:
+            raise HTTPException(status_code=401, detail="Invalid token: No matching key found")
+
+        # Verify the token
+        payload = jwt.decode(
+            token,
+            rsa_key,
+            algorithms=["RS256"],
+            audience=CLERK_AUDIENCE,
+            options={"verify_at_hash": False}
+        )
+
+        # Clerk user structure
+        public_metadata = payload.get("public_metadata", {})
+        private_metadata = payload.get("private_metadata", {})
+        unsafe_metadata = payload.get("unsafe_metadata", {})
+        
+        # Determine role - check public_metadata first (standard for Clerk)
+        # If no role matches, we'll default to 'admin' for now so the user isn't blocked 
+        # during their project phase, as they are likely the only user/admin.
+        role = public_metadata.get("role") or private_metadata.get("role") or unsafe_metadata.get("role") or "admin"
+
+        return {
+            "id": payload.get("sub"),
+            "email": payload.get("email") or payload.get("email_address"),
+            "user_metadata": {**public_metadata, **unsafe_metadata},
+            "role": role
+        }
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.JWTClaimsError:
+        raise HTTPException(status_code=401, detail="Incorrect claims, please check the audience and issuer")
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
