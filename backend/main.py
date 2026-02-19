@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import bins, vehicles, collections, complaints, analytics, predictions, forecasting, auth
+from app.routes import bins, vehicles, collections, complaints, analytics, predictions, forecasting, auth, webhooks
 from app.utils.database import engine, Base
 
 # Create database tables
@@ -23,6 +23,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router)  # Auth routes
+app.include_router(webhooks.router) # clerk webhooks
 app.include_router(bins.router, prefix="/api/bins", tags=["Bins"])
 app.include_router(vehicles.router, prefix="/api/vehicles", tags=["Vehicles"])
 app.include_router(collections.router, prefix="/api/collections", tags=["Collections"])

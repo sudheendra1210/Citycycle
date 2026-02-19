@@ -11,6 +11,7 @@ import Complaints from './pages/Complaints';
 import Analytics from './pages/Analytics';
 import Predictions from './pages/Predictions';
 import Forecasting from './pages/Forecasting';
+import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 
@@ -39,6 +40,7 @@ function App() {
                       <Route path="/analytics" element={<Analytics />} />
                       <Route path="/predictions" element={<Predictions />} />
                       <Route path="/forecasting" element={<Forecasting />} />
+                      <Route path="/profile" element={<Profile />} />
                     </Routes>
                   </Layout>
                 </ProtectedRoute>

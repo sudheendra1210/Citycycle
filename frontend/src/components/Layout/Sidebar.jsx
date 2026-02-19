@@ -9,7 +9,8 @@ import {
     MdPsychology as Brain,
     MdTrendingUp as TrendingUp,
     MdMenu as Menu,
-    MdClose as X
+    MdClose as X,
+    MdPerson as UserIcon
 } from 'react-icons/md';
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,22 +19,27 @@ const Sidebar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(true);
-    const { user, signOut } = useAuth();
+    const { user, logout } = useAuth();
 
     const menuItems = [
         { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
         { path: '/bins', icon: Trash2, label: 'Bins' },
-        { path: '/vehicles', icon: Truck, label: 'Vehicles' },
-        { path: '/collections', icon: ClipboardList, label: 'Collections' },
+        { path: '/vehicles', icon: Truck, label: 'Vehicles', roles: ['admin', 'worker'] },
+        { path: '/collections', icon: ClipboardList, label: 'Collections', roles: ['admin', 'worker'] },
         { path: '/complaints', icon: MessageSquare, label: 'Complaints' },
-        { path: '/analytics', icon: BarChart3, label: 'Analytics' },
-        { path: '/predictions', icon: Brain, label: 'Predictions' },
-        { path: '/forecasting', icon: TrendingUp, label: 'Forecasting' },
+        { path: '/analytics', icon: BarChart3, label: 'Analytics', roles: ['admin'] },
+        { path: '/predictions', icon: Brain, label: 'Predictions', roles: ['admin'] },
+        { path: '/forecasting', icon: TrendingUp, label: 'Forecasting', roles: ['admin'] },
+        { path: '/profile', icon: UserIcon, label: 'Profile' },
     ];
+
+    const filteredMenuItems = menuItems.filter(item =>
+        !item.roles || item.roles.includes(user?.role)
+    );
 
     const handleLogout = async () => {
         try {
-            await signOut();
+            await logout();
             navigate('/login');
         } catch (error) {
             console.error('Logout failed:', error);
@@ -111,7 +117,7 @@ const Sidebar = () => {
 
                     {/* Navigation */}
                     <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {menuItems.map((item) => {
+                        {filteredMenuItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = location.pathname === item.path;
 
@@ -148,7 +154,7 @@ const Sidebar = () => {
                             <div style={{ padding: '0.5rem', marginBottom: '0.75rem' }}>
                                 <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0, marginBottom: '0.25rem' }}>Logged in as</p>
                                 <p style={{ fontSize: '0.875rem', color: '#d1d5db', fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {user?.email || 'User'}
+                                    {user?.name || user?.email || 'User'}
                                 </p>
                             </div>
 

@@ -131,9 +131,9 @@ const Dashboard = () => {
                         <button
                             onClick={handleOptimizeRoute}
                             disabled={isOptimizing}
-                            className={`flex items - center gap - 2 px - 4 py - 2.5 rounded - lg font - bold text - sm transition - all shadow - lg shadow - accent / 10 ${isOptimizing
-                                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                                    : 'bg-accent text-white hover:bg-accent/90'
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all shadow-lg shadow-accent/10 ${isOptimizing
+                                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                : 'bg-accent text-white hover:bg-accent/90'
                                 } `}
                         >
                             {isOptimizing ? <Clock className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
@@ -156,14 +156,14 @@ const Dashboard = () => {
                     <div className="flex bg-muted/20 p-1 rounded-lg border border-border">
                         <button
                             onClick={() => setViewMode('global')}
-                            className={`px - 3 py - 1 text - [10px] font - bold rounded - md transition - all ${viewMode === 'global' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'} `}
+                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${viewMode === 'global' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'} `}
                         >
                             Global
                         </button>
                         <button
                             disabled={!coords}
                             onClick={() => setViewMode('local')}
-                            className={`px - 3 py - 1 text - [10px] font - bold rounded - md transition - all ${viewMode === 'local' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground disabled:opacity-50'} `}
+                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${viewMode === 'local' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground disabled:opacity-50'} `}
                         >
                             Local
                         </button>
@@ -278,7 +278,7 @@ const Dashboard = () => {
                                     nearbyBins.length > 0 ? nearbyBins.map(bin => (
                                         <div key={bin.bin_id} className={`p - 3 border rounded - xl transition - all cursor - pointer group ${bin.fill_level > 80 ? 'bg-destructive/5 border-destructive/20' : 'bg-muted/20 border-border/50 hover:bg-muted/30'} `}>
                                             <div className="flex justify-between items-start mb-1">
-                                                <span className={`text - [10px] font - black uppercase tracking - widest ${bin.fill_level > 80 ? 'text-destructive' : 'text-accent'} `}>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${bin.fill_level > 80 ? 'text-destructive' : 'text-accent'} `}>
                                                     {bin.status}
                                                 </span>
                                                 <span className="text-[10px] text-muted-foreground font-bold">{bin.distance_km} km</span>
@@ -288,7 +288,7 @@ const Dashboard = () => {
                                                 <div className="flex-grow mr-4">
                                                     <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
                                                         <div
-                                                            className={`h - full transition - all duration - 1000 ${bin.fill_level > 80 ? 'bg-destructive' : 'bg-accent'} `}
+                                                            className={`h-full transition-all duration-1000 ${bin.fill_level > 80 ? 'bg-destructive' : 'bg-accent'} `}
                                                             style={{ width: `${bin.fill_level}% ` }}
                                                         />
                                                     </div>
@@ -402,7 +402,7 @@ const StatCard = ({ title, value, icon: Icon, unit, color }) => {
     return (
         <div className="bg-card border border-border rounded-2xl p-5 hover:border-accent/40 transition-all group group-hover:shadow-lg">
             <div className="flex justify-baseline items-start mb-4">
-                <div className={`p - 2 rounded - xl ${colorMap[color] || colorMap.primary} `}>
+                <div className={`p-2 rounded-xl ${colorMap[color] || colorMap.primary} `}>
                     <Icon className="w-5 h-5" />
                 </div>
                 <div className="ml-auto h-6 w-12 bg-muted/20 rounded-lg flex items-center justify-center">

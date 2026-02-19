@@ -91,6 +91,100 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased font-sans;
+    @apply bg-[#020617] text-foreground antialiased font-sans min-h-screen overflow-x-hidden;
+  }
+}
+
+@layer utilities {
+  .mesh-gradient-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+    background: #020617;
+  }
+
+  .mesh-gradient-bg::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(at 0% 0%, hsla(161, 84%, 48%, 0.15) 0, transparent 50%),
+      radial-gradient(at 50% 0%, hsla(187, 84%, 48%, 0.12) 0, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(161, 84%, 48%, 0.15) 0, transparent 50%),
+      radial-gradient(at 0% 50%, hsla(187, 84%, 48%, 0.1) 0, transparent 50%),
+      radial-gradient(at 100% 50%, hsla(161, 84%, 48%, 0.1) 0, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(187, 84%, 48%, 0.15) 0, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(161, 84%, 48%, 0.12) 0, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(187, 84%, 48%, 0.15) 0, transparent 50%);
+    animation: meshFlow 20s ease-in-out infinite alternate;
+  }
+
+  .glass-immersive {
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  @keyframes meshFlow {
+    0% {
+      transform: rotate(0deg) scale(1);
+    }
+
+    50% {
+      transform: rotate(5deg) scale(1.1);
+    }
+
+    100% {
+      transform: rotate(-5deg) scale(1);
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 1s ease-out forwards;
+  }
+
+  /* Hide Clerk's "Last used" badge — it overflows due to backdrop-filter containment */
+  .clerk-container [class*="badge"],
+  .clerk-container [class*="Badge"],
+  .clerk-container [class*="tagPill"],
+  .clerk-container [class*="TagPill"],
+  .clerk-container [class*="lastUsed"],
+  .clerk-container [class*="LastUsed"],
+  .clerk-container [class*="cl-badge"],
+  .clerk-container [class*="cl-tag"] {
+    display: none !important;
   }
 }

@@ -50,5 +50,11 @@ export const binsService = {
             params: { lat, lng, radius_km: radius }
         });
         return response.data;
+    },
+
+    // Seed test bins near a location
+    seedNearby: async (latitude, longitude, count = 10, radius_km = 2.0) => {
+        const response = await api.post('/api/bins/seed-nearby', { latitude, longitude, count, radius_km });
+        return response.data;
     }
 };

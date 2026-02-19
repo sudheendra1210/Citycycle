@@ -1,16 +1,86 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from app.models.database_models import Bin, BinReading
+from app.models.database_models import Bin, BinReading, BinType, BinStatus
 from app.models.schemas import BinCreate, BinResponse, BinReadingCreate, BinReadingResponse
 from app.utils.database import get_db
 from app.middleware.auth import get_optional_user
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 from geopy.distance import geodesic
-from geopy.distance import geodesic
+from pydantic import BaseModel
+import random
+import math
 
 router = APIRouter()
+
+
+class SeedRequest(BaseModel):
+    latitude: float
+    longitude: float
+    count: int = 10
+    radius_km: float = 2.0
+
+
+@router.post("/seed-nearby")
+def seed_bins_nearby(data: SeedRequest, db: Session = Depends(get_db)):
+    """Seed test bins within a radius around a location"""
+    # Clear existing bins, readings, and collections
+    db.query(BinReading).delete()
+    from app.models.database_models import Collection
+    db.query(Collection).delete()
+    db.query(Bin).delete()
+    db.commit()
+
+    types = [BinType.RESIDENTIAL, BinType.COMMERCIAL, BinType.PUBLIC_SPACE]
+    sensors = ["ultrasonic", "infrared", "weight"]
+    zones = ["North", "South", "East", "West", "Central"]
+    capacities = [120, 240, 360, 500]
+
+    created_bins = []
+    for i in range(1, data.count + 1):
+        # Spread bins evenly in a circle with some randomness
+        angle = (2 * math.pi * i / data.count) + random.uniform(-0.3, 0.3)
+        distance_km = random.uniform(0.3, data.radius_km)
+
+        # Convert polar to lat/lng offset
+        # 1 degree lat ≈ 111km, 1 degree lng ≈ 111km * cos(lat)
+        dlat = (distance_km * math.cos(angle)) / 111.0
+        dlng = (distance_km * math.sin(angle)) / (111.0 * math.cos(math.radians(data.latitude)))
+
+        new_bin = Bin(
+            bin_id=f"BIN_{i}",
+            latitude=data.latitude + dlat,
+            longitude=data.longitude + dlng,
+            area_name="Nearby",
+            capacity_liters=random.choice(capacities),
+            bin_type=types[i % 3],
+            sensor_type=sensors[i % 3],
+            zone=zones[i % 5],
+            ward=random.randint(1, 10),
+            status=BinStatus.ACTIVE,
+            installation_date=datetime.utcnow()
+        )
+        db.add(new_bin)
+        created_bins.append(new_bin.bin_id)
+
+    # Also seed some random fill-level readings
+    db.flush()
+    for i in range(1, data.count + 1):
+        fill = random.uniform(5, 95)
+        reading = BinReading(
+            bin_id=f"BIN_{i}",
+            fill_level_percent=round(fill, 1),
+            weight_kg=round(random.uniform(1, 50), 1),
+            temperature_c=round(random.uniform(20, 40), 1),
+            battery_percent=round(random.uniform(50, 100), 1),
+            timestamp=datetime.utcnow()
+        )
+        db.add(reading)
+
+    db.commit()
+    return {"message": f"Created {len(created_bins)} bins", "bins": created_bins}
+
 
 @router.get("/", response_model=List[BinResponse])
 def get_all_bins(
@@ -85,7 +155,10 @@ def create_bin_reading(
     reading: BinReadingCreate,
     db: Session = Depends(get_db)
 ):
-    """Add a new sensor reading"""
+    """Add a new sensor reading and notify if full"""
+    from app.utils.twilio_service import twilio_service
+    from app.models.database_models import User, UserRole
+
     # Verify bin exists
     bin = db.query(Bin).filter(Bin.bin_id == bin_id).first()
     if not bin:
@@ -93,6 +166,29 @@ def create_bin_reading(
     
     db_reading = BinReading(**reading.dict())
     db.add(db_reading)
+    
+    # Check for overflow alert
+    if db_reading.fill_level_percent >= 90.0:
+        # Notify admins and workers in this area
+        alert_users = db.query(User).filter(
+            (User.role.in_([UserRole.ADMIN, UserRole.WORKER])) & 
+            (User.is_phone_verified == True)
+        ).all()
+        
+        # Filter by area if available
+        if bin.area_name:
+            area_users = [u for u in alert_users if u.area == bin.area_name or u.role == UserRole.ADMIN]
+            if area_users:
+                alert_users = area_users
+
+        for user in alert_users:
+            if user.phone:
+                twilio_service.notify_bin_full(
+                    user.phone, 
+                    bin.bin_id, 
+                    bin.area_name or "Unknown Area"
+                )
+
     db.commit()
     db.refresh(db_reading)
     return db_reading

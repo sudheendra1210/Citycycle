@@ -14,15 +14,26 @@ const api = axios.create({
 api.interceptors.request.use(
     async (config) => {
         try {
-            // Get token from Clerk
+            // Try Clerk token first
             if (window.Clerk?.session) {
                 const token = await window.Clerk.session.getToken();
                 if (token) {
                     config.headers.Authorization = `Bearer ${token}`;
+                    return config;
                 }
             }
+            // Fallback to backend token (phone auth)
+            const backendToken = localStorage.getItem('citycycle_token');
+            if (backendToken) {
+                config.headers.Authorization = `Bearer ${backendToken}`;
+            }
         } catch (error) {
-            console.error('Error fetching Clerk token:', error);
+            console.error('Error fetching auth token:', error);
+            // Still try backend token on Clerk error
+            const backendToken = localStorage.getItem('citycycle_token');
+            if (backendToken) {
+                config.headers.Authorization = `Bearer ${backendToken}`;
+            }
         }
 
         return config;

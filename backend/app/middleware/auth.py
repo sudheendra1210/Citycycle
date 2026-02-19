@@ -1,10 +1,13 @@
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import requests
 from typing import Optional, Dict
 from jose import jwt
 from app.config.clerk_config import CLERK_JWKS_URL, CLERK_AUDIENCE
+from app.utils.database import get_db
+from sqlalchemy.orm import Session
+from app.models.database_models import User, UserRole
 
 security = HTTPBearer()
 
@@ -23,9 +26,9 @@ def get_jwks():
             return None
     return _jwks_cache
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict:
+def verify_clerk_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict:
     """
-    Verify JWT token from Clerk and return user data
+    Verify JWT token from Clerk and return payload
     """
     token = credentials.credentials
     jwks = get_jwks()
@@ -52,7 +55,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
                 break
         
         if not rsa_key:
-            raise HTTPException(status_code=401, detail="Invalid token: No matching key found")
+            raise HTTPException(status_code=401, detail="Invalid token")
 
         # Verify the token
         payload = jwt.decode(
@@ -62,52 +65,93 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
             audience=CLERK_AUDIENCE,
             options={"verify_at_hash": False}
         )
+        return payload
 
-        # Clerk user structure
-        public_metadata = payload.get("public_metadata", {})
-        private_metadata = payload.get("private_metadata", {})
-        unsafe_metadata = payload.get("unsafe_metadata", {})
-        
-        # Determine role - check public_metadata first (standard for Clerk)
-        # If no role matches, we'll default to 'admin' for now so the user isn't blocked 
-        # during their project phase, as they are likely the only user/admin.
-        role = public_metadata.get("role") or private_metadata.get("role") or unsafe_metadata.get("role") or "admin"
-
-        return {
-            "id": payload.get("sub"),
-            "email": payload.get("email") or payload.get("email_address"),
-            "user_metadata": {**public_metadata, **unsafe_metadata},
-            "role": role
-        }
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.JWTClaimsError:
-        raise HTTPException(status_code=401, detail="Incorrect claims, please check the audience and issuer")
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict:
+def verify_backend_token(token: str) -> Dict:
     """
-    Dependency to get current authenticated user
+    Verify custom JWT issued by our backend
     """
-    return verify_token(credentials)
+    try:
+        payload = jwt.decode(
+            token, 
+            os.getenv("JWT_SECRET"), 
+            algorithms=["HS256"]
+        )
+        return payload
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid backend token: {str(e)}")
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+    db: Session = Depends(get_db)
+) -> Dict:
+    """
+    Dependency to get current authenticated user (Clerk or Backend)
+    """
+    token = credentials.credentials
+    
+    # Logic to distinguish between Clerk and Backend tokens
+    # Custom backend tokens are HS256, Clerk tokens are RS256 with specific headers
+    try:
+        header = jwt.get_unverified_header(token)
+        if header.get("alg") == "HS256":
+            # Backend Token
+            payload = verify_backend_token(token)
+            user_id = payload.get("user_id")
+            user = db.query(User).filter(User.id == user_id).first()
+        else:
+            # Clerk Token
+            payload = verify_clerk_token(credentials)
+            clerk_id = payload.get("sub")
+            user = db.query(User).filter(User.clerk_id == clerk_id).first()
+            
+            if not user:
+                # Sync Clerk user to DB
+                email = payload.get("email") or payload.get("email_address")
+                metadata = {**payload.get("public_metadata", {}), **payload.get("unsafe_metadata", {})}
+                user = User(
+                    clerk_id=clerk_id,
+                    email=email,
+                    role=metadata.get("role") or UserRole.USER,
+                    area=metadata.get("area"),
+                    is_phone_verified=False
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    return {
+        "id": user.clerk_id or f"phone_{user.id}",
+        "db_id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "phone": user.phone,
+        "role": user.role,
+        "area": user.area,
+        "is_phone_verified": user.is_phone_verified
+    }
 
 
 def require_role(required_role: str):
     """
-    Dependency to check if user has required role
-    Roles hierarchy: admin > operator > viewer
+    Dependency to check if user has required role from DB
     """
-    def role_checker(user: Dict = Security(get_current_user)) -> Dict:
-        user_role = user.get("role", "viewer")
+    def role_checker(user: Dict = Depends(get_current_user)) -> Dict:
+        user_role = user.get("role", "user")
         
-        # Define role hierarchy
         roles_hierarchy = {
             "admin": 3,
-            "operator": 2,
-            "viewer": 1
+            "worker": 2,
+            "user": 1
         }
         
         user_level = roles_hierarchy.get(user_role, 0)
@@ -127,7 +171,10 @@ def require_role(required_role: str):
 # Optional authentication (doesn't fail if no token)
 optional_security = HTTPBearer(auto_error=False)
 
-def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Security(optional_security)) -> Optional[Dict]:
+def get_optional_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(optional_security),
+    db: Session = Depends(get_db)
+) -> Optional[Dict]:
     """
     Get user if authenticated, None otherwise
     """
@@ -135,6 +182,7 @@ def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Secu
         return None
     
     try:
-        return verify_token(credentials)
+        payload = verify_clerk_token(credentials)
+        return get_current_user(payload, db)
     except:
         return None

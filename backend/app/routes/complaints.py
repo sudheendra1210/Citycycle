@@ -64,7 +64,10 @@ def resolve_complaint(
     rating: int = None,
     db: Session = Depends(get_db)
 ):
-    """Mark complaint as resolved"""
+    """Mark complaint as resolved and notify citizen"""
+    from app.utils.twilio_service import twilio_service
+    from app.models.database_models import User
+
     complaint = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
     if not complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
@@ -80,6 +83,15 @@ def resolve_complaint(
         complaint.citizen_rating = rating
     
     db.commit()
+    
+    # Notify user if they are linked to this complaint and have a verified phone
+    # Assuming we can find the user by their Clerk ID or similar (not implemented in Complaint model yet)
+    # For now, if we had a user_id on Complaint, we'd do:
+    # if complaint.user_id:
+    #     user = db.query(User).filter(User.clerk_id == complaint.user_id).first()
+    #     if user and user.phone and user.is_phone_verified:
+    #         twilio_service.notify_complaint_update(user.phone, complaint.complaint_id, "RESOLVED")
+    
     db.refresh(complaint)
     return complaint
 

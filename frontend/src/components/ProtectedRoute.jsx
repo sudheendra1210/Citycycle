@@ -1,9 +1,10 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
+    const location = useLocation();
 
     if (loading) {
         return (
@@ -17,7 +18,13 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/login" replace />;
     }
 
+    // Redirect new users to profile to set their name
+    if (!user.name && location.pathname !== '/profile') {
+        return <Navigate to="/profile" replace />;
+    }
+
     return children;
 };
 
 export default ProtectedRoute;
+

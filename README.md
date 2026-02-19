@@ -6,8 +6,13 @@
 
 ## 🚀 Key Features
 
-- **🌐 Interactive Satellite Mapping**: High-quality mapping of all waste bins using Esri World Imagery with detailed road and landmark labels—centered specifically for **Hyderabad, India**.
-- **📊 ML-Powered Forecasting**: Predictive analytics that forecast bin fill levels using multiple machine learning models (Random Forest, XGBoost, etc.).
+- **🌐 Interactive Satellite Mapping**: High-quality mapping of all waste bins using Esri World Imagery with detailed road and landmark labels.
+- **📍 Dynamic Bin Seeding**: Automatically generates test bins within **2km of your actual location** for realistic testing.
+- **👤 Smart User Profile**:
+  - **New User Flow**: Auto-redirects new users to set their name upon first login.
+  - **Hybrid Auth**: Supports both Clerk (Social/Email) and Custom Phone OTP authentication.
+  - **Profile Management**: Editable user details and real-time updates.
+- **📊 ML-Powered Forecasting**: Predictive analytics that forecast bin fill levels using multiple machine learning models (Random Forest, XGBoost).
 - **⚡ Real-time Monitoring**: Live dashboard showing current bin status, fill levels, and collection efficiency metrics.
 - **🚨 Complaint Management**: Fully functional citizen portal for submitting and tracking waste-related complaints.
 - **📱 Responsive UI**: A premium dark-themed dashboard with glassmorphism, gradient accents, and modern aesthetics.
@@ -19,17 +24,17 @@
 ### Frontend
 - **Framework**: React.js with Vite
 - **Mapping**: Leaflet with Esri Satellite Tiles
-- **State Management**: React Hooks & Context API
-- **Styling**: Vanilla CSS (Inline styles for robustness) & Tailwind CSS
-- **Visualization**: Recharts for analytical data and forecasting charts
-- **Auth**: Supabase Authentication
+- **State Management**: React Hooks & Context API (AuthContext, LocationContext)
+- **Styling**: Tailwind CSS + Custom Dark Theme
+- **Visualization**: Recharts for analytical data
+- **Auth**: Clerk (Email/Social) + Custom Axios Interceptors (Phone Auth)
 
 ### Backend
 - **Framework**: FastAPI (Python)
-- **Database**: SQLite with SQLAlchemy ORM (for storing analytical sensor data and ML training records)
-- **Authentication**: Supabase Auth
+- **Database**: SQLite with SQLAlchemy ORM
+- **Authentication**: Hybrid (Clerk JWT + Custom JWT for Phone)
 - **ML/Data**: Scikit-learn, Pandas, NumPy
-- **Storage/Live Config**: Supabase Integration
+- **SMS**: Twilio Integration for OTPs
 
 ---
 
@@ -39,19 +44,17 @@
 ├── 📂 backend
 │   ├── 📂 app            # FastAPI Application Core
 │   │   ├── 📂 models     # SQLAlchemy Models
-│   │   ├── 📂 routes     # API Endpoints
+│   │   ├── 📂 routes     # API Endpoints (Auth, Bins, Complaints)
 │   │   └── 📂 utils      # Database & ML Helpers
 │   ├── main.py           # Server Entry Point
-│   ├── seed_database.py  # Data Seeding Script (Hyderabad Config)
 │   └── requirements.txt  # Python Dependencies
 │
 ├── 📂 frontend
 │   ├── 📂 src
-│   │   ├── 📂 components # Reusable UI Components (Charts, Map, Layout)
-│   │   ├── 📂 pages      # Main Dashboard Pages
+│   │   ├── 📂 components # Reusable UI Components
+│   │   ├── 📂 pages      # Main Dashboard Pages (Dashboard, Bins, Profile)
 │   │   ├── 📂 services   # API Connection logic
-│   │   └── App.jsx       # Root Component
-│   ├── 📄 .env           # Environment Variables
+│   │   └── 📂 contexts   # Auth & Location State
 │   └── package.json      # Vite/React configuration
 ```
 
@@ -62,7 +65,7 @@
 ### 1. Prerequisites
 - Python 3.8+
 - Node.js 16+
-- Supabase Account (for DB/Auth)
+- Twilio Account (for SMS) & Clerk Account (for Auth)
 
 ### 2. Backend Setup
 ```bash
@@ -72,13 +75,10 @@ cd backend
 # Create a virtual environment
 python -m venv venv
 # Activate (Windows)
-venv\Scripts\activate 
+.\venv\Scripts\activate 
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Seed the database with Hyderabad data
-python seed_database.py
 
 # Run the server
 python main.py
@@ -95,6 +95,26 @@ npm install
 # Run the developer server
 npm run dev
 ```
+
+---
+
+## 🧪 How to Test
+
+### 1. New User Flow
+- Sign up with a new phone number.
+- You will be automatically redirected to a **"Welcome" screen** to enter your name.
+- Once saved, your name appears in the Sidebar and Profile.
+
+### 2. Dynamic Bin Seeding
+- Go to the **Bins** page.
+- If no bins exist, you'll see a **"Generate Test Bins"** button.
+- Click it -> Allow Location Permission.
+- 10 test bins will be created within **2km of your location**.
+
+### 3. Phone Authentication
+- Use the **Phone Login** option.
+- Enter your mobile number -> Receive OTP (simulated in backend console if using trial account).
+- Enter OTP to login.
 
 ---
 

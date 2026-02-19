@@ -1,8 +1,28 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Enum, func
 from sqlalchemy.orm import relationship
 from app.utils.database import Base
 from datetime import datetime
 import enum
+
+class UserRole(str, enum.Enum):
+    USER = "user"
+    WORKER = "worker"
+    ADMIN = "admin"
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    clerk_id = Column(String, unique=True, index=True, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=True)
+    name = Column(String, nullable=True)
+    phone = Column(String, unique=True, index=True, nullable=True)
+    role = Column(Enum(UserRole), default=UserRole.USER)
+    area = Column(String, nullable=True)
+    is_phone_verified = Column(Boolean, default=False)
+    otp_code = Column(String, nullable=True)
+    otp_expires_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
 
 class BinType(str, enum.Enum):
     RESIDENTIAL = "residential"

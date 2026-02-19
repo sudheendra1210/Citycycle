@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { MdLocationOn as MapPin, MdFilterList as Filter } from 'react-icons/md';
+import { useState, useEffect, useRef } from 'react';
+import { MdLocationOn as MapPin, MdFilterList as Filter, MdAddCircle } from 'react-icons/md';
 import BinMap from '../components/Map/BinMap';
 import { binsService } from '../services/binsService';
 
@@ -7,6 +7,7 @@ const Bins = () => {
     const [bins, setBins] = useState([]);
     const [filteredBins, setFilteredBins] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [seeding, setSeeding] = useState(false);
     const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
     const [filters, setFilters] = useState({
         zone: 'all',
@@ -31,6 +32,35 @@ const Bins = () => {
             console.error('Error fetching bins:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Get user location, with fallback
+    const getUserLocation = () => {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                resolve({ lat: 17.385, lng: 78.4867 }); // Hyderabad fallback
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                () => resolve({ lat: 17.385, lng: 78.4867 }), // Fallback on error
+                { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+            );
+        });
+    };
+
+    const seedTestBins = async () => {
+        try {
+            setSeeding(true);
+            const loc = await getUserLocation();
+            console.log('Seeding bins near:', loc);
+            await binsService.seedNearby(loc.lat, loc.lng, 10, 2.0);
+            await fetchBins();
+        } catch (error) {
+            console.error('Error seeding bins:', error);
+        } finally {
+            setSeeding(false);
         }
     };
 
@@ -182,8 +212,53 @@ const Bins = () => {
                 </div>
             </div>
 
+            {/* Empty State - Generate Bins */}
+            {bins.length === 0 && !loading ? (
+                <div style={{
+                    backgroundColor: '#1f2937',
+                    borderRadius: '0.75rem',
+                    padding: '3rem',
+                    textAlign: 'center',
+                    border: '1px solid rgba(75, 85, 99, 0.3)',
+                }}>
+                    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🗑️</div>
+                    <h3 style={{ color: 'white', fontSize: '1.5rem', margin: '0 0 0.5rem 0' }}>No Bins Found</h3>
+                    <p style={{ color: '#9ca3af', margin: '0 0 1.5rem 0' }}>
+                        Generate test bins within 2km of your current location
+                    </p>
+                    <button
+                        onClick={seedTestBins}
+                        disabled={seeding}
+                        style={{
+                            backgroundColor: '#7c3aed',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.75rem',
+                            padding: '0.85rem 2rem',
+                            fontSize: '1rem',
+                            fontWeight: 600,
+                            cursor: seeding ? 'not-allowed' : 'pointer',
+                            opacity: seeding ? 0.7 : 1,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            transition: 'all 0.2s ease',
+                        }}
+                    >
+                        {seeding ? (
+                            <>⏳ Generating...</>
+                        ) : (
+                            <><MdAddCircle size={20} /> Generate 10 Test Bins Near Me</>
+                        )}
+                    </button>
+                    <p style={{ color: '#6b7280', fontSize: '0.75rem', margin: '1rem 0 0 0' }}>
+                        Your browser will ask for location permission
+                    </p>
+                </div>
+            ) : null}
+
             {/* Content */}
-            {viewMode === 'map' ? (
+            {bins.length > 0 && viewMode === 'map' ? (
                 <div style={{
                     backgroundColor: '#1f2937',
                     borderRadius: '0.75rem',
@@ -230,7 +305,7 @@ const Bins = () => {
                         </div>
                     </div>
                 </div>
-            ) : (
+            ) : bins.length > 0 && viewMode === 'list' ? (
                 <div style={{ backgroundColor: '#1f2937', borderRadius: '0.5rem', padding: '1.5rem', overflow: 'hidden' }}>
                     <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -286,7 +361,7 @@ const Bins = () => {
                         </table>
                     </div>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 };

@@ -1,6 +1,11 @@
-import { MdNotifications as Bell, MdPerson as User } from 'react-icons/md';
+import { MdNotifications as Bell, MdPerson as UserIcon } from 'react-icons/md';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
     return (
         <header className="glass-card border-b border-dark-800 px-6 py-4 mb-6">
             <div className="flex items-center justify-between">
@@ -14,20 +19,17 @@ const Header = () => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Notifications */}
-                    <button className="relative p-2 hover:bg-dark-800 rounded-lg transition-colors">
-                        <Bell size={20} className="text-gray-400" />
-                        <span className="absolute top-1 right-1 w-2 h-2 bg-danger-500 rounded-full"></span>
-                    </button>
-
                     {/* User menu */}
-                    <div className="flex items-center gap-3 px-4 py-2 glass-card rounded-lg cursor-pointer hover:bg-dark-800 transition-colors">
+                    <div
+                        onClick={() => navigate('/profile')}
+                        className="flex items-center gap-3 px-4 py-2 glass-card rounded-lg cursor-pointer hover:bg-dark-800 transition-colors"
+                    >
                         <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-success-500 rounded-full flex items-center justify-center">
-                            <User size={16} className="text-white" />
+                            <UserIcon size={16} className="text-white" />
                         </div>
                         <div className="hidden md:block">
-                            <p className="text-sm font-semibold text-gray-200">Admin User</p>
-                            <p className="text-xs text-gray-500">Administrator</p>
+                            <p className="text-sm font-semibold text-gray-200">{user?.fullName || user?.email?.split('@')[0] || 'User'}</p>
+                            <p className="text-xs text-gray-500 capitalize">{user?.role || 'Guest'}</p>
                         </div>
                     </div>
                 </div>
